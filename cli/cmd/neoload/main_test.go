@@ -373,6 +373,134 @@ func TestNewListCmd(t *testing.T) {
 	}
 }
 
+// ─── remove ───────────────────────────────────────────────────────────────────
+
+// setupInstalledSkill creates a project directory with a skill installed on
+// disk and a matching lock file entry. Returns the project dir.
+func setupInstalledSkill(t *testing.T, repo, skill string) string {
+	t.Helper()
+	dir := t.TempDir()
+	os.Mkdir(filepath.Join(dir, ".claude"), 0755)
+
+	skillDir := filepath.Join(dir, ".claude/skills", skill)
+	os.MkdirAll(skillDir, 0755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# "+skill), 0644)
+
+	lockPath := filepath.Join(dir, ".neoload", "skills.lock.json")
+	lf := &lock.File{Version: 1, Installs: []lock.Install{
+		{
+			Scope:            "local",
+			Source:           repo + "@" + skill,
+			Repo:             repo,
+			Skill:            skill,
+			ResolvedCommit:   "abc123",
+			InstalledTargets: []string{skillDir},
+			InstalledAt:      time.Now().UTC(),
+			UpdatedAt:        time.Now().UTC(),
+		},
+	}}
+	if err := lock.Write(lockPath, lf); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestRunRemoveSuccess(t *testing.T) {
+	dir := setupInstalledSkill(t, "o/r", "myskill")
+	skillDir := filepath.Join(dir, ".claude/skills/myskill")
+
+	buf := captureOutput(t)
+
+	if err := runRemove(dir, "o/r@myskill", false, false); err != nil {
+		t.Fatalf("runRemove: %v", err)
+	}
+
+	// Skill directory should be gone.
+	if _, err := os.Stat(skillDir); err == nil {
+		t.Error("skill directory should have been removed")
+	}
+
+	// Lock entry should be removed.
+	lf, _ := lock.Read(filepath.Join(dir, ".neoload/skills.lock.json"))
+	if len(lf.Installs) != 0 {
+		t.Errorf("expected 0 lock entries after remove, got %d", len(lf.Installs))
+	}
+
+	if !strings.Contains(buf.String(), "myskill") {
+		t.Errorf("output should mention skill name, got: %s", buf.String())
+	}
+}
+
+func TestRunRemoveDryRun(t *testing.T) {
+	dir := setupInstalledSkill(t, "o/r", "myskill")
+	skillDir := filepath.Join(dir, ".claude/skills/myskill")
+
+	buf := captureOutput(t)
+
+	if err := runRemove(dir, "o/r@myskill", false, true); err != nil {
+		t.Fatalf("runRemove dry-run: %v", err)
+	}
+
+	// Skill directory should still exist.
+	if _, err := os.Stat(skillDir); err != nil {
+		t.Error("dry-run should not remove skill directory")
+	}
+
+	// Lock should be unchanged.
+	lf, _ := lock.Read(filepath.Join(dir, ".neoload/skills.lock.json"))
+	if len(lf.Installs) != 1 {
+		t.Errorf("dry-run should not modify lock file")
+	}
+
+	if !strings.Contains(buf.String(), "[dry-run]") {
+		t.Errorf("expected [dry-run] in output, got: %s", buf.String())
+	}
+}
+
+func TestRunRemoveNotInstalled(t *testing.T) {
+	captureOutput(t)
+	// No lock file exists — skill was never installed.
+	err := runRemove(t.TempDir(), "o/r@sk", false, false)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != 3 {
+		t.Errorf("expected exitError{code:3}, got %v", err)
+	}
+}
+
+func TestRunRemoveInvalidSource(t *testing.T) {
+	captureOutput(t)
+	err := runRemove(t.TempDir(), "bad-input", false, false)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != 2 {
+		t.Errorf("expected exitError{code:2}, got %v", err)
+	}
+}
+
+func TestNewRemoveCmd(t *testing.T) {
+	cmd := newRemoveCmd()
+	for _, name := range []string{"global", "dry-run"} {
+		if cmd.Flags().Lookup(name) == nil {
+			t.Errorf("flag --%s not registered", name)
+		}
+	}
+	if cmd.Flags().ShorthandLookup("g") == nil {
+		t.Error("flag -g shorthand not registered")
+	}
+}
+
+func TestNewRootCmdHasRemove(t *testing.T) {
+	cmd := newRootCmd()
+	found := false
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == "remove" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("newRootCmd should have a 'remove' subcommand")
+	}
+}
+
 func TestIsSkillError(t *testing.T) {
 	tests := []struct {
 		msg  string

@@ -57,6 +57,7 @@ func newRootCmd() *cobra.Command {
 	}
 	root.AddCommand(newAddCmd())
 	root.AddCommand(newListCmd())
+	root.AddCommand(newRemoveCmd())
 	return root
 }
 
@@ -141,6 +142,98 @@ func runList(cwd string, global bool) error {
 		for _, t := range inst.InstalledTargets {
 			ui.Info("  %s", t)
 		}
+	}
+
+	return nil
+}
+
+func newRemoveCmd() *cobra.Command {
+	var (
+		global bool
+		dryRun bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "remove <owner>/<repo>@<skill>",
+		Short: "Remove an installed skill",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return exit(2, fmt.Errorf("expected one argument: owner/repo@skill"))
+			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return exit(5, fmt.Errorf("cannot determine working directory: %w", err))
+			}
+			return runRemove(cwd, args[0], global, dryRun)
+		},
+	}
+
+	cmd.Flags().BoolVarP(&global, "global", "g", false, "remove from user-level agent directories")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print what would be removed without deleting files")
+
+	return cmd
+}
+
+func runRemove(cwd, arg string, global, dryRun bool) error {
+	src, err := source.Parse(arg)
+	if err != nil {
+		return exit(2, err)
+	}
+
+	scope := "local"
+	lockPath := filepath.Join(cwd, ".neoload", "skills.lock.json")
+	if global {
+		scope = "global"
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return exit(5, fmt.Errorf("cannot determine home directory: %w", err))
+		}
+		lockPath = filepath.Join(home, ".neoload", "skills.lock.json")
+	}
+
+	lf, err := lock.Read(lockPath)
+	if err != nil {
+		return exit(5, err)
+	}
+
+	// Find the matching entry.
+	idx := -1
+	for i, inst := range lf.Installs {
+		if inst.Scope == scope && inst.Repo == src.Repo && inst.Skill == src.Skill {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return exit(3, fmt.Errorf("skill %q is not installed", src.String()))
+	}
+
+	entry := lf.Installs[idx]
+
+	if dryRun {
+		ui.Info("[dry-run] Would remove %s", src.String())
+		for _, t := range entry.InstalledTargets {
+			ui.Info("  %s", t)
+		}
+		return nil
+	}
+
+	// Remove each installed target directory.
+	for _, t := range entry.InstalledTargets {
+		if err := os.RemoveAll(t); err != nil {
+			return exit(5, fmt.Errorf("remove %s: %w", t, err))
+		}
+	}
+
+	// Remove entry from lock file and persist.
+	lf.Installs = append(lf.Installs[:idx], lf.Installs[idx+1:]...)
+	if err := lock.Write(lockPath, lf); err != nil {
+		return exit(5, fmt.Errorf("write lock file: %w", err))
+	}
+
+	ui.Success("Removed %s", src.String())
+	for _, t := range entry.InstalledTargets {
+		ui.Success("  %s", t)
 	}
 
 	return nil
