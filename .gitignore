@@ -1,2 +1,5 @@
 cli/bin/
+cli/neoload
 cli/coverage.out
+cli/cmd_coverage.out
+.claude/
