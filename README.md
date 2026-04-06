@@ -50,7 +50,29 @@ One command. All agents. Instantly skilled.
 
 ## Install
 
+**Download a binary** from the [latest release](https://github.com/dearmachines/neoload/releases/latest),
+make it executable, and move it to your `$PATH`:
+
 ```bash
+# macOS arm64 example
+curl -L https://github.com/dearmachines/neoload/releases/latest/download/neoload-darwin-arm64 -o neoload
+chmod +x neoload
+mv neoload /usr/local/bin/
+```
+
+**Build with Go** (requires Go 1.22+):
+
+```bash
+git clone https://github.com/dearmachines/neoload.git
+cd neoload
+go install ./cli/cmd/neoload
+```
+
+**Build with just**:
+
+```bash
+git clone https://github.com/dearmachines/neoload.git
+cd neoload
 just build   # → bin/neoload
 ```
 
