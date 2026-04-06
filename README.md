@@ -1,3 +1,5 @@
+# neoload
+
 ```
 
   █   █  █████   ███   █      ███    ███   ████
@@ -47,12 +49,6 @@ One command. All agents. Instantly skilled.
 ---
 
 ## Install
-
-```bash
-go install neoload/cmd/neoload@latest
-```
-
-Or build from source:
 
 ```bash
 just build   # → bin/neoload
