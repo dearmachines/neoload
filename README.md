@@ -6,11 +6,7 @@
   █  ██  █      █   █  █     █   █  █   █  █   █
   █   █  █████   ███   █████  ███   █   █  ████
 
-         i n s t a l l   s k i l l s .   b e c o m e .
 ```
-
-> *"I know kung fu."*
-> — Neo, after a 10-second skill upload
 
 **neoload** uploads skills directly into your AI agents.
 No sparring. No training montage. Just `neoload add` and it's done.
