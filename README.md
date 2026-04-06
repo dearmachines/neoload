@@ -8,12 +8,12 @@
 
 ```
 
-> Agent: I know xslx
+> **Agent:** I know xlsx.
 
-> Me: Show mw
+> **You:** [Show me.](https://www.youtube.com/watch?v=0YhJxJZOWBw)
 
+**neoload** uploads skills directly into your AI agents.
 
-[**neoload**](https://www.youtube.com/watch?v=0YhJxJZOWBw) uploads skills directly into your AI agents.
 No sparring. No training montage. Just `neoload add` and it's done.
 
 ```bash
@@ -31,9 +31,6 @@ Installed anthropic/skills@xlsx
     /your/project/.claude/skills/xlsx
     /your/project/.opencode/skills/xlsx
 ```
-
-**Agent:** I know xlsx.
-**You:** [Show me.](https://www.youtube.com/watch?v=0YhJxJZOWBw)
 
 ---
 
@@ -109,8 +106,8 @@ The loaded commit is recorded in a lock file so your team loads the exact same
 version.
 
 ```
-.skills/skills.lock.json   ← local
-~/.skills/skills.lock.json ← global
+.neoload/skills.lock.json   ← local
+~/.neoload/skills.lock.json ← global
 ```
 
 ---

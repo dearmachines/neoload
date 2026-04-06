@@ -79,8 +79,8 @@ The skill maps to `skills/<skill>/` inside the repository. `SKILL.md` must exist
 
 Installed skills are tracked in a lock file that records the pinned commit SHA:
 
-- Local: `<project>/.skills/skills.lock.json`
-- Global: `~/.skills/skills.lock.json`
+- Local: `<project>/.neoload/skills.lock.json`
+- Global: `~/.neoload/skills.lock.json`
 
 ## Exit codes
 

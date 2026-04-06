@@ -79,7 +79,7 @@ func TestRunAddSuccess(t *testing.T) {
 	}
 
 	// Lock file should exist.
-	lockPath := filepath.Join(projectDir, ".skills/skills.lock.json")
+	lockPath := filepath.Join(projectDir, ".neoload/skills.lock.json")
 	if _, err := os.Stat(lockPath); err != nil {
 		t.Errorf("lock file not written: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestRunAddGlobal(t *testing.T) {
 		filepath.Join(home, ".claude/skills/sk"),
 		filepath.Join(home, ".opencode/skills/sk"),
 		filepath.Join(home, ".agents/skills/sk"),
-		filepath.Join(home, ".skills/skills.lock.json"),
+		filepath.Join(home, ".neoload/skills.lock.json"),
 	}
 	t.Cleanup(func() {
 		for _, d := range globalDirs {
@@ -321,7 +321,7 @@ func TestRunListEmpty(t *testing.T) {
 
 func TestRunListWithEntries(t *testing.T) {
 	dir := t.TempDir()
-	lockPath := filepath.Join(dir, ".skills", "skills.lock.json")
+	lockPath := filepath.Join(dir, ".neoload", "skills.lock.json")
 
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{

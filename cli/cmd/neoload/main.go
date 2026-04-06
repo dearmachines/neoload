@@ -113,13 +113,13 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(cwd string, global bool) error {
-	lockPath := filepath.Join(cwd, ".skills", "skills.lock.json")
+	lockPath := filepath.Join(cwd, ".neoload", "skills.lock.json")
 	if global {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return exit(5, fmt.Errorf("cannot determine home directory: %w", err))
 		}
-		lockPath = filepath.Join(home, ".skills", "skills.lock.json")
+		lockPath = filepath.Join(home, ".neoload", "skills.lock.json")
 	}
 
 	lf, err := lock.Read(lockPath)
@@ -205,14 +205,14 @@ func runAdd(
 
 	// 6. Write lock file.
 	scope := "local"
-	lockPath := filepath.Join(cwd, ".skills", "skills.lock.json")
+	lockPath := filepath.Join(cwd, ".neoload", "skills.lock.json")
 	if global {
 		scope = "global"
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return exit(5, fmt.Errorf("cannot determine home directory: %w", err))
 		}
-		lockPath = filepath.Join(home, ".skills", "skills.lock.json")
+		lockPath = filepath.Join(home, ".neoload", "skills.lock.json")
 	}
 
 	lf, err := lock.Read(lockPath)
