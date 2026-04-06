@@ -144,7 +144,3 @@ just vet      # go vet
 just tidy     # go mod tidy
 just clean    # remove artifacts
 ```
-
----
-
-*"He's beginning to believe."*
