@@ -8,7 +8,12 @@
 
 ```
 
-**neoload** uploads skills directly into your AI agents.
+> Agent: I know xslx
+
+> Me: Show mw
+
+
+[**neoload**](https://www.youtube.com/watch?v=0YhJxJZOWBw) uploads skills directly into your AI agents.
 No sparring. No training montage. Just `neoload add` and it's done.
 
 ```bash
