@@ -4,6 +4,10 @@ default: test
 build:
     go build -C cli -o ../bin/neoload ./cmd/neoload
 
+# Install the neoload binary to $GOPATH/bin
+install:
+    go install -C cli ./cmd/neoload
+
 # Run all tests
 test:
     go test -C cli ./...
