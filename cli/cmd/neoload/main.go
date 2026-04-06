@@ -42,10 +42,10 @@ func main() {
 	if err := cmd.Execute(); err != nil {
 		var ee *exitError
 		if errors.As(err, &ee) {
-			fmt.Fprintln(os.Stderr, "error:", ee.err)
+			ui.Error("%v", ee.err)
 			os.Exit(ee.code)
 		}
-		fmt.Fprintln(os.Stderr, "error:", err)
+		ui.Error("%v", err)
 		os.Exit(1)
 	}
 }
@@ -133,16 +133,21 @@ func runList(cwd string, global bool) error {
 		return nil
 	}
 
+	headers := []string{"SKILL", "COMMIT", "INSTALLED", "TARGETS"}
+	var rows [][]string
 	for _, inst := range lf.Installs {
 		shortSHA := inst.ResolvedCommit
 		if len(shortSHA) > 7 {
 			shortSHA = shortSHA[:7]
 		}
-		ui.Info("%s  %s  %s", inst.Source, shortSHA, inst.UpdatedAt.Format("2006-01-02"))
-		for _, t := range inst.InstalledTargets {
-			ui.Info("  %s", t)
-		}
+		rows = append(rows, []string{
+			inst.Source,
+			shortSHA,
+			inst.UpdatedAt.Format("2006-01-02"),
+			agentNames(inst.InstalledTargets),
+		})
 	}
+	ui.Table(headers, rows)
 
 	return nil
 }
@@ -233,7 +238,7 @@ func runRemove(cwd, arg string, global, dryRun bool) error {
 
 	ui.Success("Removed %s", src.String())
 	for _, t := range entry.InstalledTargets {
-		ui.Success("  %s", t)
+		ui.Info("  %s", t)
 	}
 
 	return nil
@@ -261,9 +266,11 @@ func runAdd(
 	}
 
 	// 3. Resolve and download skill from GitHub.
-	ui.Info("Resolving %s...", src.String())
+	spin := ui.StartSpinner(fmt.Sprintf("Resolving %s...", src.String()))
 
 	resolved, err := ghClient.ResolveSkill(ctx, src.Owner(), src.RepoName(), src.Skill)
+	spin.Stop()
+
 	if err != nil {
 		code := 5
 		if isSkillError(err) {
@@ -276,12 +283,13 @@ func runAdd(
 	if len(shortSHA) > 7 {
 		shortSHA = shortSHA[:7]
 	}
-	ui.Info("Resolved commit: %s", shortSHA)
+	ui.Success("Resolved %s (%s)", src.String(), shortSHA)
 
 	// 4. Dry-run: show what would happen without writing.
 	if dryRun {
 		fileCount := countFiles(resolved.Files)
-		ui.Info("\n[dry-run] Would install %s (%s)", src.String(), shortSHA)
+		fmt.Fprintln(ui.Out)
+		ui.Info("[dry-run] Would install %s (%s)", src.String(), shortSHA)
 		ui.Info("  files:   %d", fileCount)
 		ui.Info("  targets:")
 		for _, t := range tgts {
@@ -331,12 +339,13 @@ func runAdd(
 	}
 
 	// 7. Print success summary.
-	ui.Success("\nInstalled %s@%s", src.Repo, src.Skill)
-	ui.Success("  commit:  %s", resolved.CommitSHA)
-	ui.Success("  files:   %d", fileCount)
-	ui.Success("  targets:")
+	fmt.Fprintln(ui.Out)
+	ui.Success("Installed %s@%s", src.Repo, src.Skill)
+	ui.Info("  commit:  %s", resolved.CommitSHA)
+	ui.Info("  files:   %d", fileCount)
+	ui.Info("  targets:")
 	for _, p := range installedPaths {
-		ui.Success("    %s", p)
+		ui.Info("    %s", p)
 	}
 
 	return nil
@@ -355,6 +364,17 @@ func isSkillError(err error) bool {
 		}
 	}
 	return false
+}
+
+// agentNames extracts agent names from installed target paths.
+// e.g. "/project/.claude/skills/xlsx" → "claude"
+func agentNames(targets []string) string {
+	var names []string
+	for _, t := range targets {
+		parent := filepath.Base(filepath.Dir(filepath.Dir(t)))
+		names = append(names, strings.TrimPrefix(parent, "."))
+	}
+	return strings.Join(names, ", ")
 }
 
 // countFiles walks an fs.FS and returns the number of regular files.

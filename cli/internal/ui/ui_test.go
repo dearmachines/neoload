@@ -34,7 +34,10 @@ func TestError(t *testing.T) {
 	t.Cleanup(func() { Err = nil })
 
 	Error("bad %s", "thing")
-	if got := buf.String(); !strings.Contains(got, "error: bad thing") {
-		t.Errorf("Error output = %q, want to contain %q", got, "error: bad thing")
+	if got := buf.String(); !strings.Contains(got, "bad thing") {
+		t.Errorf("Error output = %q, want to contain %q", got, "bad thing")
+	}
+	if got := buf.String(); !strings.Contains(got, "✗") {
+		t.Errorf("Error output = %q, want to contain ✗ prefix", got)
 	}
 }

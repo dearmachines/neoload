@@ -348,8 +348,8 @@ func TestRunListWithEntries(t *testing.T) {
 	if !strings.Contains(out, "aabbccd") {
 		t.Errorf("expected short SHA in output, got: %s", out)
 	}
-	if !strings.Contains(out, ".claude/skills/xlsx") {
-		t.Errorf("expected install path in output, got: %s", out)
+	if !strings.Contains(out, "SKILL") {
+		t.Errorf("expected table header in output, got: %s", out)
 	}
 }
 
