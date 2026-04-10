@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -73,6 +74,37 @@ func Table(headers []string, rows [][]string) {
 	}
 
 	fmt.Fprintln(Out, t.String())
+}
+
+var (
+	reCode   = regexp.MustCompile("`([^`]+)`")
+	reBold   = regexp.MustCompile(`\*\*([^*]+)\*\*`)
+	reItalic = regexp.MustCompile(`\*([^*]+)\*`)
+	reLink   = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+)
+
+// RenderInlineMd renders inline markdown formatting (bold, italic, code, links)
+// as ANSI-styled text for terminal display.
+func RenderInlineMd(s string) string {
+	r := outRenderer()
+	boldStyle := r.NewStyle().Bold(true)
+	italicStyle := r.NewStyle().Italic(true)
+	codeStyle := r.NewStyle().Foreground(lipgloss.Color("203"))
+
+	// Order matters: code first, then bold (** before *), then italic, then links.
+	s = reCode.ReplaceAllStringFunc(s, func(m string) string {
+		return codeStyle.Render(reCode.FindStringSubmatch(m)[1])
+	})
+	s = reBold.ReplaceAllStringFunc(s, func(m string) string {
+		return boldStyle.Render(reBold.FindStringSubmatch(m)[1])
+	})
+	s = reItalic.ReplaceAllStringFunc(s, func(m string) string {
+		return italicStyle.Render(reItalic.FindStringSubmatch(m)[1])
+	})
+	s = reLink.ReplaceAllStringFunc(s, func(m string) string {
+		return reLink.FindStringSubmatch(m)[1]
+	})
+	return s
 }
 
 // Spinner displays an animated spinner in TTY mode.

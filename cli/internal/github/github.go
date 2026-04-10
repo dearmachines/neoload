@@ -292,6 +292,13 @@ func (c *HTTPClient) fetchContents(ctx context.Context, owner, repo, path, ref, 
 
 		switch entry.Type {
 		case "file":
+			if entry.Content == "" {
+				// Directory listings don't include file content; fetch individually.
+				if err := c.fetchContents(ctx, owner, repo, path+"/"+entry.Name, ref, relPrefix, memFS); err != nil {
+					return err
+				}
+				continue
+			}
 			data, err := base64.StdEncoding.DecodeString(
 				strings.ReplaceAll(entry.Content, "\n", ""),
 			)

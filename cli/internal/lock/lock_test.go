@@ -29,7 +29,7 @@ func TestWriteRead(t *testing.T) {
 		Installs: []Install{
 			{
 				Scope:            "local",
-				Source:           "anthropic/skills@xlsx",
+				Source:           "anthropic/skills:xlsx",
 				Repo:             "anthropic/skills",
 				Skill:            "xlsx",
 				ResolvedCommit:   "abc123",

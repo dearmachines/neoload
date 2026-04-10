@@ -97,21 +97,34 @@ func TestResolveSkillHTTP(t *testing.T) {
 		case "/repos/testowner/testrepo/commits/main":
 			json.NewEncoder(w).Encode(map[string]string{"sha": sha})
 		case "/repos/testowner/testrepo/contents/skills/myskill":
+			// Directory listing — no content, matching real GitHub API.
 			json.NewEncoder(w).Encode([]map[string]string{
 				{
-					"name":     "SKILL.md",
-					"path":     "skills/myskill/SKILL.md",
-					"type":     "file",
-					"encoding": "base64",
-					"content":  base64.StdEncoding.EncodeToString([]byte("# MySkill")),
+					"name": "SKILL.md",
+					"path": "skills/myskill/SKILL.md",
+					"type": "file",
 				},
 				{
-					"name":     "helper.sh",
-					"path":     "skills/myskill/helper.sh",
-					"type":     "file",
-					"encoding": "base64",
-					"content":  base64.StdEncoding.EncodeToString([]byte("#!/bin/sh\necho hi")),
+					"name": "helper.sh",
+					"path": "skills/myskill/helper.sh",
+					"type": "file",
 				},
+			})
+		case "/repos/testowner/testrepo/contents/skills/myskill/SKILL.md":
+			json.NewEncoder(w).Encode(map[string]string{
+				"name":     "SKILL.md",
+				"path":     "skills/myskill/SKILL.md",
+				"type":     "file",
+				"encoding": "base64",
+				"content":  base64.StdEncoding.EncodeToString([]byte("# MySkill")),
+			})
+		case "/repos/testowner/testrepo/contents/skills/myskill/helper.sh":
+			json.NewEncoder(w).Encode(map[string]string{
+				"name":     "helper.sh",
+				"path":     "skills/myskill/helper.sh",
+				"type":     "file",
+				"encoding": "base64",
+				"content":  base64.StdEncoding.EncodeToString([]byte("#!/bin/sh\necho hi")),
 			})
 		default:
 			http.NotFound(w, r)
@@ -450,9 +463,11 @@ func contentsHandler(sha string, skillFiles map[string]string) http.HandlerFunc 
 			for name, content := range skillFiles {
 				fullPath := "skills/sk/" + name
 				if fullPath == path {
-					// Single file request.
+					// Single file request — name is just the filename, not the full path.
+					parts := strings.Split(name, "/")
+					baseName := parts[len(parts)-1]
 					json.NewEncoder(w).Encode(map[string]string{
-						"name":     name,
+						"name":     baseName,
 						"path":     fullPath,
 						"type":     "file",
 						"encoding": "base64",
@@ -465,12 +480,11 @@ func contentsHandler(sha string, skillFiles map[string]string) http.HandlerFunc 
 					relName := strings.TrimPrefix(fullPath, path+"/")
 					// Only include direct children.
 					if !strings.Contains(relName, "/") {
+						// Real GitHub API does NOT include content in directory listings.
 						entries = append(entries, map[string]string{
-							"name":     relName,
-							"path":     fullPath,
-							"type":     "file",
-							"encoding": "base64",
-							"content":  base64.StdEncoding.EncodeToString([]byte(content)),
+							"name": relName,
+							"path": fullPath,
+							"type": "file",
 						})
 					} else {
 						// Subdirectory entry.
@@ -526,6 +540,15 @@ func TestContentsAPIHappyPath(t *testing.T) {
 	}
 	if _, err := fs.Stat(resolved.Files, "run.sh"); err != nil {
 		t.Errorf("run.sh not found: %v", err)
+	}
+	// Verify file content is non-empty (catches the bug where directory
+	// listings return no content and files are created empty).
+	data, err := fs.ReadFile(resolved.Files, "SKILL.md")
+	if err != nil {
+		t.Fatalf("read SKILL.md: %v", err)
+	}
+	if string(data) != "# Test Skill" {
+		t.Errorf("SKILL.md content = %q, want %q", string(data), "# Test Skill")
 	}
 }
 

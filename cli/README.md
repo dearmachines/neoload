@@ -11,7 +11,7 @@ internal/
   install/         Atomic file copy to target directories
   lock/            Lock file persistence (skills.lock.json)
   registry/        Agent definitions (Claude, OpenCode, Codex)
-  source/          Source string parsing (owner/repo@skill)
+  source/          Source string parsing (owner/repo:skill[@ref])
   targets/         Install target detection (local/global)
   ui/              Terminal output, spinner, table formatting
 ```

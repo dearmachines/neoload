@@ -78,7 +78,7 @@ func TestRunAddSuccess(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# Test", "run.sh": "#!/bin/sh"}),
 	}
 
-	err := runAdd(context.Background(), projectDir, "o/r@myskill", false, false, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:myskill", false, false, false, 0, client)
 	if err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestRunAddDryRun(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# SK"}),
 	}
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, true, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, true, false, 0, client)
 	if err != nil {
 		t.Fatalf("runAdd dry-run: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestRunAddForceOverwrite(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# New"}),
 	}
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, false, true, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, false, true, 0, client)
 	if err != nil {
 		t.Fatalf("runAdd force: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestRunAddExistingNoForce(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# X"}),
 	}
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, false, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, false, false, 0, client)
 	if err != nil {
 		t.Fatalf("expected no error for already-installed skill, got %v", err)
 	}
@@ -190,7 +190,7 @@ func TestRunAddNewAgentTarget(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# Test"}),
 	}
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, false, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, false, false, 0, client)
 	if err != nil {
 		t.Fatalf("runAdd: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestRunAddInvalidSource(t *testing.T) {
 func TestRunAddNoTargets(t *testing.T) {
 	captureOutput(t)
 	// Empty dir with no agent markers.
-	err := runAdd(context.Background(), t.TempDir(), "o/r@sk", false, false, false, 0, nil)
+	err := runAdd(context.Background(), t.TempDir(), "o/r:sk", false, false, false, 0, nil)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 4 {
 		t.Errorf("expected exitError{code:4}, got %v", err)
@@ -251,7 +251,7 @@ func TestRunAddSkillNotFound(t *testing.T) {
 		Message: "skill \"missing\" not found in repository",
 	}}
 
-	err := runAdd(context.Background(), projectDir, "o/r@missing", false, false, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:missing", false, false, false, 0, client)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 3 {
 		t.Errorf("expected exitError{code:3}, got %v", err)
@@ -266,7 +266,7 @@ func TestRunAddNetworkError(t *testing.T) {
 
 	client := &fakeGHClient{err: errors.New("dial tcp: connection refused")}
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, false, false, 0, client)
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, false, false, 0, client)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 5 {
 		t.Errorf("expected exitError{code:5}, got %v", err)
@@ -300,7 +300,7 @@ func TestRunAddGlobal(t *testing.T) {
 	}
 
 	// Global mode installs to all agent directories; use force to avoid conflicts.
-	err = runAdd(context.Background(), t.TempDir(), "o/r@sk", true, false, true, 0, client)
+	err = runAdd(context.Background(), t.TempDir(), "o/r:sk", true, false, true, 0, client)
 	if err != nil {
 		t.Fatalf("runAdd global: %v", err)
 	}
@@ -350,7 +350,7 @@ func TestNewRootCmd(t *testing.T) {
 	// Should have an "add" subcommand.
 	found := false
 	for _, sub := range cmd.Commands() {
-		if sub.Use == "add <owner>/<repo>@<skill>" {
+		if sub.Use == "add <owner>/<repo>:<skill>" {
 			found = true
 		}
 	}
@@ -407,7 +407,7 @@ func TestRunListWithEntries(t *testing.T) {
 
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{
-			Source:           "anthropic/skills@xlsx",
+			Source:           "anthropic/skills:xlsx",
 			ResolvedCommit:   "aabbccddee",
 			InstalledTargets: []string{"/project/.claude/skills/xlsx"},
 			UpdatedAt:        time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC),
@@ -424,7 +424,7 @@ func TestRunListWithEntries(t *testing.T) {
 	}
 
 	out := buf.String()
-	if !strings.Contains(out, "anthropic/skills@xlsx") {
+	if !strings.Contains(out, "anthropic/skills:xlsx") {
 		t.Errorf("expected skill name in output, got: %s", out)
 	}
 	if !strings.Contains(out, "aabbccd") {
@@ -441,7 +441,7 @@ func TestRunListWithAgentNames(t *testing.T) {
 
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{
-			Source:              "o/r@sk",
+			Source:              "o/r:sk",
 			ResolvedCommit:      "aabbccd",
 			InstalledTargets:    []string{"/x/.claude/skills/sk"},
 			InstalledAgentNames: []string{"claude"},
@@ -466,7 +466,7 @@ func TestRunListFallbackAgentNames(t *testing.T) {
 	// Old lock file without InstalledAgentNames.
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{
-			Source:           "o/r@sk",
+			Source:           "o/r:sk",
 			ResolvedCommit:   "aabbccd",
 			InstalledTargets: []string{"/x/.claude/skills/sk"},
 			UpdatedAt:        time.Date(2026, 4, 6, 0, 0, 0, 0, time.UTC),
@@ -520,7 +520,7 @@ func TestRunListJSONPopulated(t *testing.T) {
 	now := time.Date(2026, 4, 5, 12, 0, 0, 0, time.UTC)
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{
-			Source:           "anthropic/skills@xlsx",
+			Source:           "anthropic/skills:xlsx",
 			ResolvedCommit:   "aabbccddee",
 			InstalledTargets: []string{"/project/.claude/skills/xlsx"},
 			InstalledAt:      now,
@@ -550,8 +550,8 @@ func TestRunListJSONPopulated(t *testing.T) {
 	}
 
 	e := entries[0]
-	if e.Source != "anthropic/skills@xlsx" {
-		t.Errorf("Source = %q, want %q", e.Source, "anthropic/skills@xlsx")
+	if e.Source != "anthropic/skills:xlsx" {
+		t.Errorf("Source = %q, want %q", e.Source, "anthropic/skills:xlsx")
 	}
 	if e.Commit != "aabbccddee" {
 		t.Errorf("Commit = %q, want %q", e.Commit, "aabbccddee")
@@ -596,7 +596,7 @@ func setupInstalledSkill(t *testing.T, repo, skill string) string {
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
 		{
 			Scope:            "local",
-			Source:           repo + "@" + skill,
+			Source:           repo + ":" + skill,
 			Repo:             repo,
 			Skill:            skill,
 			ResolvedCommit:   "abc123",
@@ -617,7 +617,7 @@ func TestRunRemoveSuccess(t *testing.T) {
 
 	buf := captureOutput(t)
 
-	if err := runRemove(dir, "o/r@myskill", false, false); err != nil {
+	if err := runRemove(dir, "o/r:myskill", false, false); err != nil {
 		t.Fatalf("runRemove: %v", err)
 	}
 
@@ -643,7 +643,7 @@ func TestRunRemoveDryRun(t *testing.T) {
 
 	buf := captureOutput(t)
 
-	if err := runRemove(dir, "o/r@myskill", false, true); err != nil {
+	if err := runRemove(dir, "o/r:myskill", false, true); err != nil {
 		t.Fatalf("runRemove dry-run: %v", err)
 	}
 
@@ -666,7 +666,7 @@ func TestRunRemoveDryRun(t *testing.T) {
 func TestRunRemoveNotInstalled(t *testing.T) {
 	captureOutput(t)
 	// No lock file exists — skill was never installed.
-	err := runRemove(t.TempDir(), "o/r@sk", false, false)
+	err := runRemove(t.TempDir(), "o/r:sk", false, false)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 3 {
 		t.Errorf("expected exitError{code:3}, got %v", err)
@@ -763,7 +763,7 @@ func TestRunUpdateSuccess(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# Updated"}),
 	}
 
-	err := runUpdate(context.Background(), dir, "o/r@myskill", false, false, client)
+	err := runUpdate(context.Background(), dir, "o/r:myskill", false, false, client)
 	if err != nil {
 		t.Fatalf("runUpdate: %v", err)
 	}
@@ -793,7 +793,7 @@ func TestRunUpdateAlreadyCurrent(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# Same"}),
 	}
 
-	err := runUpdate(context.Background(), dir, "o/r@myskill", false, false, client)
+	err := runUpdate(context.Background(), dir, "o/r:myskill", false, false, client)
 	if err != nil {
 		t.Fatalf("runUpdate: %v", err)
 	}
@@ -812,7 +812,7 @@ func TestRunUpdateDryRun(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# New"}),
 	}
 
-	err := runUpdate(context.Background(), dir, "o/r@myskill", false, true, client)
+	err := runUpdate(context.Background(), dir, "o/r:myskill", false, true, client)
 	if err != nil {
 		t.Fatalf("runUpdate dry-run: %v", err)
 	}
@@ -830,7 +830,7 @@ func TestRunUpdateDryRun(t *testing.T) {
 
 func TestRunUpdateNotInstalled(t *testing.T) {
 	captureOutput(t)
-	err := runUpdate(context.Background(), t.TempDir(), "o/r@missing", false, false, nil)
+	err := runUpdate(context.Background(), t.TempDir(), "o/r:missing", false, false, nil)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 3 {
 		t.Errorf("expected exitError{code:3}, got %v", err)
@@ -852,8 +852,8 @@ func TestRunUpdateAllMultiple(t *testing.T) {
 	lockPath := filepath.Join(dir, ".neoload", "skills.lock.json")
 	now := time.Now().UTC()
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
-		{Scope: "local", Source: "a/b@sk1", Repo: "a/b", Skill: "sk1", ResolvedCommit: "old1", InstalledTargets: []string{skill1Dir}, InstalledAt: now, UpdatedAt: now},
-		{Scope: "local", Source: "a/b@sk2", Repo: "a/b", Skill: "sk2", ResolvedCommit: "old2", InstalledTargets: []string{skill2Dir}, InstalledAt: now, UpdatedAt: now},
+		{Scope: "local", Source: "a/b:sk1", Repo: "a/b", Skill: "sk1", ResolvedCommit: "old1", InstalledTargets: []string{skill1Dir}, InstalledAt: now, UpdatedAt: now},
+		{Scope: "local", Source: "a/b:sk2", Repo: "a/b", Skill: "sk2", ResolvedCommit: "old2", InstalledTargets: []string{skill2Dir}, InstalledAt: now, UpdatedAt: now},
 	}}
 	lock.Write(lockPath, lf)
 
@@ -921,7 +921,7 @@ func TestRunUpdateSkillError(t *testing.T) {
 		Message: "not found",
 	}}
 
-	err := runUpdate(context.Background(), dir, "o/r@myskill", false, false, client)
+	err := runUpdate(context.Background(), dir, "o/r:myskill", false, false, client)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 3 {
 		t.Errorf("expected exitError{code:3}, got %v", err)
@@ -934,7 +934,7 @@ func TestRunUpdateNetworkError(t *testing.T) {
 
 	client := &fakeGHClient{err: errors.New("connection refused")}
 
-	err := runUpdate(context.Background(), dir, "o/r@myskill", false, false, client)
+	err := runUpdate(context.Background(), dir, "o/r:myskill", false, false, client)
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 5 {
 		t.Errorf("expected exitError{code:5}, got %v", err)
@@ -1006,7 +1006,7 @@ func TestNewUpdateCmdMutuallyExclusive(t *testing.T) {
 	cmd := newRootCmd()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.SetArgs([]string{"update", "--all", "o/r@sk"})
+	cmd.SetArgs([]string{"update", "--all", "o/r:sk"})
 	err := cmd.Execute()
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 2 {
@@ -1042,7 +1042,7 @@ func TestRunUpdateGlobal(t *testing.T) {
 	os.WriteFile(filepath.Join(globalSkillDir, "SKILL.md"), []byte("# gsk"), 0644)
 
 	lf := &lock.File{Version: 1, Installs: []lock.Install{
-		{Scope: "global", Source: "o/r@gsk", Repo: "o/r", Skill: "gsk", ResolvedCommit: "old123",
+		{Scope: "global", Source: "o/r:gsk", Repo: "o/r", Skill: "gsk", ResolvedCommit: "old123",
 			InstalledTargets: []string{globalSkillDir}, InstalledAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 	}}
 	lock.Write(lockPath, lf)
@@ -1057,7 +1057,7 @@ func TestRunUpdateGlobal(t *testing.T) {
 		files: makeTestSkillFS(map[string]string{"SKILL.md": "# Updated"}),
 	}
 
-	err = runUpdate(context.Background(), t.TempDir(), "o/r@gsk", true, false, client)
+	err = runUpdate(context.Background(), t.TempDir(), "o/r:gsk", true, false, client)
 	if err != nil {
 		t.Fatalf("runUpdate global: %v", err)
 	}
@@ -1118,7 +1118,7 @@ func TestRunAddTimeout(t *testing.T) {
 	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
 	captureOutput(t)
 
-	err := runAdd(context.Background(), projectDir, "o/r@sk", false, false, false, time.Millisecond, &blockingClient{})
+	err := runAdd(context.Background(), projectDir, "o/r:sk", false, false, false, time.Millisecond, &blockingClient{})
 	var ee *exitError
 	if !errors.As(err, &ee) || ee.code != 5 {
 		t.Errorf("expected exitError{code:5}, got %v", err)
@@ -1219,8 +1219,8 @@ func TestRunSearchJSON(t *testing.T) {
 	if entries[0].Description != "Excel stuff." {
 		t.Errorf("Description = %q", entries[0].Description)
 	}
-	if entries[0].Source != "o/r@xlsx" {
-		t.Errorf("Source = %q, want %q", entries[0].Source, "o/r@xlsx")
+	if entries[0].Source != "o/r:xlsx" {
+		t.Errorf("Source = %q, want %q", entries[0].Source, "o/r:xlsx")
 	}
 	// No ANSI escape sequences.
 	if strings.Contains(buf.String(), "\033[") {
@@ -1328,5 +1328,205 @@ func TestNewRootCmdHasSearch(t *testing.T) {
 	}
 	if !found {
 		t.Error("newRootCmd should have a 'search' subcommand")
+	}
+}
+
+// ─── local add ──────────────────────────────────────────────────────────────
+
+// setupLocalSkillRepo creates a directory with skills/<skill>/SKILL.md and
+// optional extra files. Returns the "repo root" path.
+func setupLocalSkillRepo(t *testing.T, skill string, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	skillDir := filepath.Join(dir, "skills", skill)
+	os.MkdirAll(skillDir, 0755)
+	for name, content := range files {
+		path := filepath.Join(skillDir, name)
+		os.MkdirAll(filepath.Dir(path), 0755)
+		os.WriteFile(path, []byte(content), 0644)
+	}
+	return dir
+}
+
+func TestRunAddLocalSuccess(t *testing.T) {
+	localRepo := setupLocalSkillRepo(t, "myskill", map[string]string{
+		"SKILL.md": "# My Skill",
+		"run.sh":   "#!/bin/sh\necho hello",
+	})
+
+	projectDir := t.TempDir()
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	buf := captureOutput(t)
+
+	err := runAddLocal(projectDir, localRepo+":myskill", false, false, false)
+	if err != nil {
+		t.Fatalf("runAddLocal: %v", err)
+	}
+
+	// Files should be installed.
+	destDir := filepath.Join(projectDir, ".claude/skills/myskill")
+	if _, err := os.Stat(filepath.Join(destDir, "SKILL.md")); err != nil {
+		t.Errorf("SKILL.md not installed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "run.sh")); err != nil {
+		t.Errorf("run.sh not installed: %v", err)
+	}
+
+	// Lock file should exist.
+	lockPath := filepath.Join(projectDir, ".neoload/skills.lock.json")
+	lf, err := lock.Read(lockPath)
+	if err != nil {
+		t.Fatalf("read lock: %v", err)
+	}
+	if len(lf.Installs) != 1 {
+		t.Fatalf("expected 1 install, got %d", len(lf.Installs))
+	}
+	inst := lf.Installs[0]
+	if inst.ResolvedCommit != "" {
+		t.Errorf("local install should have empty commit, got %q", inst.ResolvedCommit)
+	}
+	if !strings.HasPrefix(inst.Source, "local:") {
+		t.Errorf("source should start with 'local:', got %q", inst.Source)
+	}
+	if inst.Skill != "myskill" {
+		t.Errorf("skill = %q, want %q", inst.Skill, "myskill")
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "Installed") {
+		t.Errorf("expected 'Installed' in output, got: %s", out)
+	}
+	if !strings.Contains(out, "myskill") {
+		t.Errorf("expected 'myskill' in output, got: %s", out)
+	}
+}
+
+func TestRunAddLocalDryRun(t *testing.T) {
+	localRepo := setupLocalSkillRepo(t, "sk", map[string]string{
+		"SKILL.md": "# SK",
+	})
+
+	projectDir := t.TempDir()
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	buf := captureOutput(t)
+
+	err := runAddLocal(projectDir, localRepo+":sk", false, true, false)
+	if err != nil {
+		t.Fatalf("runAddLocal dry-run: %v", err)
+	}
+
+	// No files should be written.
+	if _, err := os.Stat(filepath.Join(projectDir, ".claude/skills/sk")); err == nil {
+		t.Error("dry-run should not write files")
+	}
+
+	if !strings.Contains(buf.String(), "[dry-run]") {
+		t.Errorf("expected [dry-run] in output, got: %s", buf.String())
+	}
+}
+
+func TestRunAddLocalForce(t *testing.T) {
+	localRepo := setupLocalSkillRepo(t, "sk", map[string]string{
+		"SKILL.md": "# New Version",
+	})
+
+	projectDir := t.TempDir()
+	destDir := filepath.Join(projectDir, ".claude/skills/sk")
+	os.MkdirAll(destDir, 0755)
+	os.WriteFile(filepath.Join(destDir, "old.txt"), []byte("stale"), 0644)
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	captureOutput(t)
+
+	err := runAddLocal(projectDir, localRepo+":sk", false, false, true)
+	if err != nil {
+		t.Fatalf("runAddLocal force: %v", err)
+	}
+
+	// Old file should be gone.
+	if _, err := os.Stat(filepath.Join(destDir, "old.txt")); err == nil {
+		t.Error("force should replace old files")
+	}
+	// New file should exist.
+	if _, err := os.Stat(filepath.Join(destDir, "SKILL.md")); err != nil {
+		t.Errorf("SKILL.md not installed: %v", err)
+	}
+}
+
+func TestRunAddLocalMissingSkillDir(t *testing.T) {
+	localRepo := t.TempDir() // empty, no skills/ dir
+
+	projectDir := t.TempDir()
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	captureOutput(t)
+
+	err := runAddLocal(projectDir, localRepo+":nosuch", false, false, false)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != 3 {
+		t.Errorf("expected exitError{code:3}, got %v", err)
+	}
+}
+
+func TestRunAddLocalMissingSKILLMD(t *testing.T) {
+	localRepo := t.TempDir()
+	os.MkdirAll(filepath.Join(localRepo, "skills", "badskill"), 0755)
+	os.WriteFile(filepath.Join(localRepo, "skills", "badskill", "run.sh"), []byte("#!/bin/sh"), 0644)
+
+	projectDir := t.TempDir()
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	captureOutput(t)
+
+	err := runAddLocal(projectDir, localRepo+":badskill", false, false, false)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != 3 {
+		t.Errorf("expected exitError{code:3}, got %v", err)
+	}
+	if !strings.Contains(ee.Error(), "SKILL.md") {
+		t.Errorf("expected SKILL.md in error, got: %s", ee.Error())
+	}
+}
+
+func TestRunAddLocalInvalidSource(t *testing.T) {
+	captureOutput(t)
+
+	err := runAddLocal(t.TempDir(), "no-colon-here", false, false, false)
+	var ee *exitError
+	if !errors.As(err, &ee) || ee.code != 2 {
+		t.Errorf("expected exitError{code:2}, got %v", err)
+	}
+}
+
+func TestRunAddLocalRelativePath(t *testing.T) {
+	// Create a local skill repo inside the project dir.
+	projectDir := t.TempDir()
+	os.Mkdir(filepath.Join(projectDir, ".claude"), 0755)
+
+	localRepo := filepath.Join(projectDir, "my-skills")
+	skillDir := filepath.Join(localRepo, "skills", "rsk")
+	os.MkdirAll(skillDir, 0755)
+	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# RSK"), 0644)
+
+	captureOutput(t)
+
+	// Use relative path.
+	err := runAddLocal(projectDir, "my-skills:rsk", false, false, false)
+	if err != nil {
+		t.Fatalf("runAddLocal relative: %v", err)
+	}
+
+	// File should be installed.
+	if _, err := os.Stat(filepath.Join(projectDir, ".claude/skills/rsk/SKILL.md")); err != nil {
+		t.Errorf("SKILL.md not installed: %v", err)
+	}
+}
+
+func TestNewAddCmdLocalFlag(t *testing.T) {
+	cmd := newAddCmd()
+	if cmd.Flags().Lookup("local") == nil {
+		t.Error("flag --local not registered")
 	}
 }

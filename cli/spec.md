@@ -7,7 +7,7 @@
 Primary user flow:
 
 ```bash
-neoload add anthropic/skills@xlsx
+neoload add anthropic/skills:xlsx
 ```
 
 In this example:
@@ -32,7 +32,7 @@ In this example:
 
 ## Command Surface
 
-### `neoload add <owner>/<repo>@<skill>`
+### `neoload add <owner>/<repo>:<skill>`
 
 Install a skill from GitHub into detected agent directories.
 
@@ -55,7 +55,7 @@ Exit codes:
 Input format:
 
 ```text
-owner/repo@skill
+owner/repo:skill
 ```
 
 Rules:
@@ -131,7 +131,7 @@ Schema (v1):
   "installs": [
     {
       "scope": "local",
-      "source": "anthropic/skills@xlsx",
+      "source": "anthropic/skills:xlsx",
       "repo": "anthropic/skills",
       "skill": "xlsx",
       "resolved_commit": "<sha>",

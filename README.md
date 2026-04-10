@@ -19,7 +19,7 @@
 No sparring. No training montage. Just `neoload add` and it's done.
 
 ```bash
-neoload add anthropic/skills@xlsx
+neoload add anthropic/skills:xlsx
 ```
 
 ---
@@ -70,16 +70,16 @@ just build   # → bin/neoload
 
 ## Commands
 
-### `neoload add <owner>/<repo>@<skill>`
+### `neoload add <owner>/<repo>:<skill>`
 
 Install a skill from GitHub into every detected agent directory.
 
 ```bash
-neoload add anthropic/skills@xlsx
+neoload add anthropic/skills:xlsx
 ```
 
 ```
-neoload add anthropic/skills@xlsx
+neoload add anthropic/skills:xlsx
   -g, --global     install to user-level agent directories (~/.claude/skills, etc.)
       --dry-run    print what would be installed without writing files
       --force      overwrite an existing skill without prompting
@@ -90,16 +90,16 @@ Examples:
 
 ```bash
 # Install into all local agents
-neoload add anthropic/skills@xlsx
+neoload add anthropic/skills:xlsx
 
 # Preview without writing
-neoload add anthropic/skills@xlsx --dry-run
+neoload add anthropic/skills:xlsx --dry-run
 
 # Install globally for all agents
-neoload add anthropic/skills@xlsx -g
+neoload add anthropic/skills:xlsx -g
 
 # Overwrite an existing install
-neoload add anthropic/skills@xlsx --force
+neoload add anthropic/skills:xlsx --force
 ```
 
 ### `neoload list`
@@ -112,7 +112,7 @@ neoload list
 
 ```
 SKILL                    COMMIT   INSTALLED   TARGETS
-anthropic/skills@xlsx    a1b2c3d  2026-04-06  claude, opencode
+anthropic/skills:xlsx    a1b2c3d  2026-04-06  claude, opencode
 ```
 
 ```bash
@@ -120,16 +120,16 @@ neoload list
   -g, --global    list globally installed skills
 ```
 
-### `neoload remove <owner>/<repo>@<skill>`
+### `neoload remove <owner>/<repo>:<skill>`
 
 Remove an installed skill and its lock file entry.
 
 ```bash
-neoload remove anthropic/skills@xlsx
+neoload remove anthropic/skills:xlsx
 ```
 
 ```bash
-neoload remove anthropic/skills@xlsx
+neoload remove anthropic/skills:xlsx
   -g, --global    remove from user-level agent directories
       --dry-run   print what would be removed without deleting files
 ```
@@ -139,7 +139,7 @@ neoload remove anthropic/skills@xlsx
 ## How it works
 
 ```
-owner/repo@skill
+owner/repo:skill[@ref]
 ```
 
 neoload resolves the repository's default branch, pins the exact commit SHA,

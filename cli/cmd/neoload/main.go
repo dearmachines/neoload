@@ -81,20 +81,27 @@ func newAddCmd() *cobra.Command {
 		global  bool
 		dryRun  bool
 		force   bool
+		local   bool
 		token   string
 		timeout time.Duration
 	)
 
 	cmd := &cobra.Command{
-		Use:   "add <owner>/<repo>@<skill>",
-		Short: "Install a skill from GitHub into detected agent directories",
+		Use:   "add <owner>/<repo>:<skill>",
+		Short: "Install a skill from GitHub or a local directory into detected agent directories",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return exit(2, fmt.Errorf("expected one argument: owner/repo@skill"))
+				if local {
+					return exit(2, fmt.Errorf("expected one argument: path:skill"))
+				}
+				return exit(2, fmt.Errorf("expected one argument: owner/repo:skill"))
 			}
 			cwd, err := os.Getwd()
 			if err != nil {
 				return exit(5, fmt.Errorf("cannot determine working directory: %w", err))
+			}
+			if local {
+				return runAddLocal(cwd, args[0], global, dryRun, force)
 			}
 			client := github.New(token)
 			return runAdd(cmd.Context(), cwd, args[0], global, dryRun, force, timeout, client)
@@ -104,6 +111,7 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&global, "global", "g", false, "install to user-level agent directories")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print what would be installed without writing files")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite existing destination skill directories")
+	cmd.Flags().BoolVar(&local, "local", false, "install from a local directory (argument is path:skill)")
 	cmd.Flags().StringVar(&token, "token", os.Getenv("GITHUB_TOKEN"), "GitHub API token ($GITHUB_TOKEN)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "timeout for GitHub API calls")
 
@@ -210,11 +218,11 @@ func newRemoveCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "remove <owner>/<repo>@<skill>",
+		Use:   "remove <owner>/<repo>:<skill>",
 		Short: "Remove an installed skill",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return exit(2, fmt.Errorf("expected one argument: owner/repo@skill"))
+				return exit(2, fmt.Errorf("expected one argument: owner/repo:skill"))
 			}
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -290,6 +298,144 @@ func runRemove(cwd, arg string, global, dryRun bool) error {
 	ui.Success("Removed %s", src.String())
 	for _, t := range entry.InstalledTargets {
 		ui.Info("  %s", t)
+	}
+
+	return nil
+}
+
+// resolveLocalSkill reads a skill from a local directory, validating that
+// skills/<skill>/ exists and contains a SKILL.md.
+func resolveLocalSkill(basePath, skill string) (fs.FS, error) {
+	skillDir := filepath.Join(basePath, "skills", skill)
+	info, err := os.Stat(skillDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("skill directory not found: %s", skillDir)
+		}
+		return nil, fmt.Errorf("stat skill directory: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("skill path is not a directory: %s", skillDir)
+	}
+
+	skillMD := filepath.Join(skillDir, "SKILL.md")
+	if _, err := os.Stat(skillMD); err != nil {
+		return nil, fmt.Errorf("skill %q is missing SKILL.md", skill)
+	}
+
+	return os.DirFS(skillDir), nil
+}
+
+// runAddLocal installs a skill from a local directory.
+func runAddLocal(
+	cwd string,
+	arg string,
+	global, dryRun, force bool,
+) error {
+	src, err := source.ParseLocal(arg)
+	if err != nil {
+		return exit(2, err)
+	}
+
+	// Resolve to absolute path.
+	basePath := src.Repo
+	if !filepath.IsAbs(basePath) {
+		basePath = filepath.Join(cwd, basePath)
+	}
+	absPath, err := filepath.Abs(basePath)
+	if err != nil {
+		return exit(5, fmt.Errorf("resolve path: %w", err))
+	}
+
+	// Detect install targets.
+	agents, err := registry.LoadAgents()
+	if err != nil {
+		return exit(5, err)
+	}
+	tgts, err := targets.Detect(cwd, agents, global)
+	if err != nil {
+		return exit(4, err)
+	}
+
+	// Resolve local skill.
+	skillFS, err := resolveLocalSkill(absPath, src.Skill)
+	if err != nil {
+		return exit(3, err)
+	}
+
+	ui.Success("Resolved %s (local)", src.Skill)
+
+	// Dry-run: show what would happen without writing.
+	if dryRun {
+		fileCount := countFiles(skillFS)
+		fmt.Fprintln(ui.Out)
+		ui.Info("[dry-run] Would install %s (local)", src.Skill)
+		ui.Info("  source:  %s", absPath)
+		ui.Info("  files:   %d", fileCount)
+		ui.Info("  targets:")
+		for _, t := range tgts {
+			ui.Info("    %s  (%s)", filepath.Join(t.SkillsDir, src.Skill), t.AgentName)
+		}
+		return nil
+	}
+
+	// Install to each target.
+	installedPaths, skippedPaths, fileCount, installErr := install.Install(skillFS, tgts, src.Skill, force)
+
+	// Write lock file.
+	allTargets := append(installedPaths, skippedPaths...)
+	if len(allTargets) > 0 {
+		scope := "local"
+		lockPath := filepath.Join(cwd, ".neoload", "skills.lock.json")
+		if global {
+			scope = "global"
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return exit(5, fmt.Errorf("cannot determine home directory: %w", err))
+			}
+			lockPath = filepath.Join(home, ".neoload", "skills.lock.json")
+		}
+
+		lf, err := lock.Read(lockPath)
+		if err != nil {
+			return exit(5, fmt.Errorf("read lock file: %w", err))
+		}
+
+		localSrc := &source.Source{Repo: absPath, Skill: src.Skill, Local: true}
+		now := time.Now().UTC()
+		lock.Upsert(lf, lock.Install{
+			Scope:               scope,
+			Source:              localSrc.String(),
+			Repo:                absPath,
+			Skill:               src.Skill,
+			InstalledTargets:    allTargets,
+			InstalledAgentNames: matchAgentNames(tgts, allTargets, src.Skill),
+			InstalledAt:         now,
+			UpdatedAt:           now,
+			CLIVersion:          version,
+		})
+
+		if err := lock.Write(lockPath, lf); err != nil {
+			return exit(5, fmt.Errorf("write lock file: %w", err))
+		}
+
+		if len(installedPaths) > 0 {
+			fmt.Fprintln(ui.Out)
+			ui.Success("Installed %s (local)", src.Skill)
+			ui.Info("  source:  %s", absPath)
+			ui.Info("  files:   %d", fileCount)
+			ui.Info("  targets:")
+			for _, p := range installedPaths {
+				ui.Info("    %s", p)
+			}
+		}
+		if len(skippedPaths) > 0 && len(installedPaths) == 0 {
+			ui.Info("Skill %s is already installed for all detected agents.", src.Skill)
+		}
+	}
+
+	if installErr != nil {
+		return exit(5, installErr)
 	}
 
 	return nil
@@ -437,14 +583,14 @@ func newUpdateCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "update [<owner>/<repo>@<skill>]",
+		Use:   "update [<owner>/<repo>:<skill>]",
 		Short: "Update installed skills to latest version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if all && len(args) > 0 {
 				return exit(2, fmt.Errorf("--all and positional argument are mutually exclusive"))
 			}
 			if !all && len(args) != 1 {
-				return exit(2, fmt.Errorf("expected one argument: owner/repo@skill (or use --all)"))
+				return exit(2, fmt.Errorf("expected one argument: owner/repo:skill (or use --all)"))
 			}
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -767,7 +913,7 @@ func runSearch(
 			entries = append(entries, searchEntry{
 				Name:        sk.Name,
 				Description: sk.Description,
-				Source:      repoArg + "@" + sk.Name,
+				Source:      repoArg + ":" + sk.Name,
 			})
 		}
 		data, err := json.MarshalIndent(entries, "", "  ")
@@ -786,7 +932,7 @@ func runSearch(
 	headers := []string{"SKILL", "DESCRIPTION"}
 	var rows [][]string
 	for _, sk := range skills {
-		rows = append(rows, []string{sk.Name, sk.Description})
+		rows = append(rows, []string{sk.Name, ui.RenderInlineMd(sk.Description)})
 	}
 	ui.Table(headers, rows)
 

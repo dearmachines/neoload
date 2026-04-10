@@ -2,39 +2,32 @@ package source
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
-// Source represents a parsed owner/repo@skill[:ref] reference.
+// sourceRe matches owner/repo:skill with optional @ref.
+var sourceRe = regexp.MustCompile(`^([^/]+)/([^/:]+):([^@]+?)(?:@(.+))?$`)
+
+// Source represents a parsed owner/repo:skill[@ref] or local path:skill reference.
 type Source struct {
-	Repo  string // "owner/repo"
+	Repo  string // "owner/repo" for remote sources, absolute path for local sources
 	Skill string // e.g. "xlsx"
 	Ref   string // optional pinned ref (tag, branch, or commit SHA); empty means default branch
+	Local bool   // true for local filesystem sources
 }
 
-// Parse parses a source string of the form "owner/repo@skill" or "owner/repo@skill:ref".
+// Parse parses a source string of the form "owner/repo:skill" or "owner/repo:skill@ref".
 func Parse(s string) (*Source, error) {
-	parts := strings.SplitN(s, "@", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid source %q: must be owner/repo@skill", s)
+	m := sourceRe.FindStringSubmatch(s)
+	if m == nil {
+		return nil, fmt.Errorf("invalid source %q: must be owner/repo:skill", s)
 	}
-	repo, skillRef := parts[0], parts[1]
-
-	repoParts := strings.SplitN(repo, "/", 3)
-	if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-		return nil, fmt.Errorf("invalid source %q: repo must be owner/repo", s)
+	owner, repo, skill, ref := m[1], m[2], m[3], m[4]
+	if owner == "" || repo == "" || skill == "" {
+		return nil, fmt.Errorf("invalid source %q: must be owner/repo:skill", s)
 	}
-
-	// Split skill and optional ref on ":".
-	skill, ref, _ := strings.Cut(skillRef, ":")
-	if skill == "" {
-		return nil, fmt.Errorf("invalid source %q: skill name must not be empty", s)
-	}
-	if strings.Contains(skillRef, ":") && ref == "" {
-		return nil, fmt.Errorf("invalid source %q: ref must not be empty when : is present", s)
-	}
-
-	return &Source{Repo: repo, Skill: skill, Ref: ref}, nil
+	return &Source{Repo: owner + "/" + repo, Skill: skill, Ref: ref}, nil
 }
 
 // Owner returns the repository owner.
@@ -49,9 +42,30 @@ func (s *Source) RepoName() string {
 
 // String returns the canonical source string.
 func (s *Source) String() string {
-	base := s.Repo + "@" + s.Skill
+	if s.Local {
+		return "local:" + s.Repo + ":" + s.Skill
+	}
+	base := s.Repo + ":" + s.Skill
 	if s.Ref != "" {
-		return base + ":" + s.Ref
+		return base + "@" + s.Ref
 	}
 	return base
+}
+
+// ParseLocal parses a local source string of the form "path:skill".
+// The path is the directory containing a skills/<skill>/ structure.
+func ParseLocal(s string) (*Source, error) {
+	idx := strings.LastIndex(s, ":")
+	if idx == -1 || idx == len(s)-1 {
+		return nil, fmt.Errorf("invalid local source %q: must be path:skill", s)
+	}
+	path := s[:idx]
+	skill := s[idx+1:]
+	if path == "" {
+		return nil, fmt.Errorf("invalid local source %q: path cannot be empty", s)
+	}
+	if skill == "" {
+		return nil, fmt.Errorf("invalid local source %q: skill cannot be empty", s)
+	}
+	return &Source{Repo: path, Skill: skill, Local: true}, nil
 }

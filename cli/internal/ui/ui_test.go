@@ -94,6 +94,72 @@ func TestTableEmpty(t *testing.T) {
 	}
 }
 
+func TestRenderInlineMd(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		// We check that formatting markers are removed and text is preserved.
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "bold",
+			input:           "Install **skills** now",
+			wantContains:    []string{"Install", "skills", "now"},
+			wantNotContains: []string{"**"},
+		},
+		{
+			name:            "inline code",
+			input:           "Use `neoload add` to install",
+			wantContains:    []string{"Use", "neoload add", "to install"},
+			wantNotContains: []string{"`"},
+		},
+		{
+			name:            "italic",
+			input:           "This is *important* info",
+			wantContains:    []string{"This is", "important", "info"},
+			wantNotContains: []string{"*important*"},
+		},
+		{
+			name:            "link",
+			input:           "See [docs](https://example.com) for more",
+			wantContains:    []string{"See", "docs", "for more"},
+			wantNotContains: []string{"](", "https://example.com"},
+		},
+		{
+			name:         "plain text unchanged",
+			input:        "No formatting here",
+			wantContains: []string{"No formatting here"},
+		},
+		{
+			name:         "empty string",
+			input:        "",
+			wantContains: []string{""},
+		},
+		{
+			name:            "mixed formatting",
+			input:           "**Invocation:** `/seo $1 $2` where `$1` is the command",
+			wantContains:    []string{"Invocation:", "/seo $1 $2", "where", "is the command"},
+			wantNotContains: []string{"**", "`"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RenderInlineMd(tt.input)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(got, want) {
+					t.Errorf("RenderInlineMd(%q) = %q, want to contain %q", tt.input, got, want)
+				}
+			}
+			for _, notWant := range tt.wantNotContains {
+				if strings.Contains(got, notWant) {
+					t.Errorf("RenderInlineMd(%q) = %q, should not contain %q", tt.input, got, notWant)
+				}
+			}
+		})
+	}
+}
+
 func TestStartSpinnerNonTTY(t *testing.T) {
 	var buf bytes.Buffer
 	Out = &buf
