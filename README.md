@@ -180,6 +180,39 @@ neoload detects agents by looking for their config directories:
 
 ---
 
+## Dependencies
+
+3 direct, 14 indirect — split between third-party and Go extended stdlib.
+
+### Third-party
+
+| Module | Type | Purpose |
+|--------|------|---------|
+| [cobra](https://github.com/spf13/cobra) | direct | CLI framework (commands, flags, help) |
+| [lipgloss](https://github.com/charmbracelet/lipgloss) | direct | Terminal styling and table output |
+| pflag | indirect | Flag parsing (cobra) |
+| mousetrap | indirect | Windows signal handling (cobra) |
+| colorprofile | indirect | Terminal color profile detection (lipgloss) |
+| x/ansi | indirect | ANSI escape sequence handling (lipgloss) |
+| x/cellbuf | indirect | Cell-based terminal buffer (lipgloss) |
+| x/term (charm) | indirect | Terminal capabilities (lipgloss) |
+| termenv | indirect | Terminal environment detection (lipgloss) |
+| go-colorful | indirect | Color manipulation (lipgloss) |
+| go-isatty | indirect | TTY detection (lipgloss) |
+| go-runewidth | indirect | Character width calculation (lipgloss) |
+| go-osc52 | indirect | OSC52 clipboard support (lipgloss) |
+| uniseg | indirect | Unicode segmentation (lipgloss) |
+| terminfo | indirect | Terminal info database (lipgloss) |
+
+### Go extended stdlib (`golang.org/x`)
+
+| Module | Type | Purpose |
+|--------|------|---------|
+| [x/term](https://pkg.go.dev/golang.org/x/term) | direct | Terminal width detection |
+| x/sys | indirect | Low-level OS primitives (x/term) |
+
+---
+
 ## Development
 
 ```bash
