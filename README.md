@@ -83,7 +83,7 @@ neoload add anthropic/skills:xlsx
   -g, --global     install to user-level agent directories (~/.claude/skills, etc.)
       --dry-run    print what would be installed without writing files
       --force      overwrite an existing skill without prompting
-      --token      GitHub API token (default: $GITHUB_TOKEN)
+      --token      GitHub API token for private repos or higher rate limits (default: $GITHUB_TOKEN)
 ```
 
 Examples:
@@ -101,6 +101,23 @@ neoload add anthropic/skills:xlsx -g
 # Overwrite an existing install
 neoload add anthropic/skills:xlsx --force
 ```
+
+#### Private GitHub repositories
+
+Private repositories are supported through GitHub API token authentication. Use a
+fine-grained personal access token with read access to the repository contents.
+Pass it with `--token`, or set `GITHUB_TOKEN`:
+
+```bash
+GITHUB_TOKEN=github_pat_xxx neoload add owner/private-repo:skill
+# or
+neoload add owner/private-repo:skill --token github_pat_xxx
+```
+
+Only GitHub API token auth is supported; SSH/git clone URLs and GitHub Enterprise
+custom hosts are not supported. If the token is missing or lacks access, GitHub
+may return a `404`/`403` and neoload will report the repository or skill as
+unavailable.
 
 ### `neoload list`
 
